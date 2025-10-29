@@ -1,6 +1,5 @@
 import streamlit as st
 import json
-import time
 import os
 from datetime import datetime
 
@@ -8,7 +7,7 @@ from datetime import datetime
 # Basic Config
 # --------------------------
 st.set_page_config(
-    page_title="Virtual Queue Management",
+    page_title="Virtual Queue Management System",
     page_icon="🎟️",
     layout="wide"
 )
@@ -57,10 +56,9 @@ def update_status(token_no, new_status):
     save_data(data)
 
 # --------------------------
-# Modern UI Styling
+# Modern UI Styling (Fixed)
 # --------------------------
-st.markdown(
-    """
+st.markdown("""
     <style>
         .stApp {
             background-color: #f4f9ff;
@@ -109,10 +107,11 @@ st.markdown(
             color: #ccc;
         }
     </style>
-    """,
-    unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
+# --------------------------
+# App Title
+# --------------------------
 st.markdown("<div class='title'>🎟️ Virtual Queue Management System</div>", unsafe_allow_html=True)
 menu = ["👤 User Registration", "🧑‍💼 Staff Console"]
 choice = st.sidebar.radio("Select Module", menu)
@@ -166,3 +165,61 @@ if choice == "👤 User Registration":
                 </div>
                 """,
                 unsafe_allow_html=True
+            )
+    else:
+        st.info("🎉 No one is waiting in the queue right now.")
+
+# --------------------------
+# Module 2: Staff Console
+# --------------------------
+elif choice == "🧑‍💼 Staff Console":
+    st.subheader("🧑‍💼 Staff / Service Provider Console")
+
+    data = load_data()
+    if not data:
+        st.info("No entries in the queue yet.")
+    else:
+        categories = ["All"] + sorted(list(set([d["category"] for d in data])))
+        selected_cat = st.selectbox("Filter by Service / Category", categories)
+
+        if selected_cat != "All":
+            data = [d for d in data if d["category"] == selected_cat]
+
+        waiting = [d for d in data if d["status"] == "Waiting"]
+        active = [d for d in data if d["status"] == "In Progress"]
+
+        # Waiting Queue
+        st.markdown("### 🕒 Waiting Queue")
+        if waiting:
+            for p in waiting:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.write(f"**Token #{p['token_no']}** - {p['name']} ({p['age']} yrs) - {p['category']}")
+                with col2:
+                    if st.button(f"Start {p['token_no']}", key=f"start_{p['token_no']}"):
+                        update_status(p['token_no'], "In Progress")
+                        st.success(f"✅ Token #{p['token_no']} now In Progress")
+                with col3:
+                    if st.button(f"Cancel {p['token_no']}", key=f"cancel_{p['token_no']}"):
+                        update_status(p['token_no'], "Cancelled")
+                        st.warning(f"❌ Token #{p['token_no']} cancelled")
+        else:
+            st.info("No one is waiting right now.")
+
+        # Active Queue
+        st.markdown("### ⚙️ Currently Being Served")
+        if active:
+            for p in active:
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.write(f"**Token #{p['token_no']}** - {p['name']} ({p['age']} yrs) - {p['category']}")
+                with col2:
+                    if st.button(f"Complete {p['token_no']}", key=f"done_{p['token_no']}"):
+                        update_status(p['token_no'], "Completed")
+                        st.success(f"✅ Token #{p['token_no']} marked as Completed")
+        else:
+            st.info("No one currently being served.")
+
+        # Full Table
+        st.markdown("### 📋 Complete Queue Data")
+        st.table(data)
