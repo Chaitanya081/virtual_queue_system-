@@ -56,55 +56,64 @@ def update_status(token_no, new_status):
     save_data(data)
 
 # --------------------------
-# Modern UI Styling (Fixed)
+# Dark Theme UI Styling (Fixed)
 # --------------------------
 st.markdown("""
     <style>
+        /* Force dark background */
         .stApp {
-            background-color: #f4f9ff;
+            background-color: #0e1117;
+            color: #f1f1f1;
         }
-        [data-base-theme="dark"] .stApp {
-            background-color: #0f1116;
-        }
+
         .title {
             text-align: center;
             font-size: 34px;
             font-weight: 800;
-            color: #1a1a1a;
+            color: #f8f9fa;
             margin-bottom: 15px;
         }
-        [data-base-theme="dark"] .title {
-            color: #f9fafc;
-        }
+
+        /* Buttons */
         .stButton>button {
-            background-color: #0066ff;
-            color: white;
+            background-color: #1f77b4;
+            color: #ffffff;
             border: none;
             border-radius: 10px;
             font-weight: 600;
-            padding: 10px 20px;
+            padding: 10px 22px;
             transition: 0.3s;
         }
         .stButton>button:hover {
-            background-color: #004bcc;
+            background-color: #105999;
         }
+
+        /* Input and Text Areas */
+        .stTextInput>div>div>input, textarea, select, .stNumberInput input {
+            background-color: #262730 !important;
+            color: #f1f1f1 !important;
+            border: 1px solid #3c4048 !important;
+            border-radius: 8px;
+        }
+
+        /* Queue Cards */
         .queue-card {
             padding: 15px;
-            border-radius: 12px;
-            background-color: rgba(220, 235, 255, 0.8);
+            border-radius: 10px;
+            background-color: #1a1c23;
             margin-bottom: 8px;
-            box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
-            border-left: 6px solid #007bff;
+            box-shadow: 0px 2px 6px rgba(255,255,255,0.05);
+            border-left: 5px solid #1f77b4;
         }
-        [data-base-theme="dark"] .queue-card {
-            background-color: rgba(255,255,255,0.05);
-            border-left: 4px solid #4dabf7;
-        }
-        .queue-card small {
-            color: #555;
-        }
-        [data-base-theme="dark"] .queue-card small {
-            color: #ccc;
+
+        .queue-card b { color: #ffffff; }
+        .queue-card i { color: #b5b5b5; }
+        .queue-card small { color: #999999; }
+
+        /* Sidebar */
+        section[data-testid="stSidebar"] {
+            background-color: #17191f;
+            color: #ffffff;
         }
     </style>
 """, unsafe_allow_html=True)
