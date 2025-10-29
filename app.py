@@ -8,7 +8,7 @@ from datetime import datetime
 # Configuration
 # --------------------------
 st.set_page_config(
-    page_title="🏥 Hospital Queue Management",
+    page_title="🏥 Virtual Queue Management",
     page_icon="🩺",
     layout="wide"
 )
