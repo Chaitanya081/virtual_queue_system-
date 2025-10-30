@@ -1,234 +1,200 @@
 import streamlit as st
-import json
-import os
+import json, os
 from datetime import datetime
 
-# --------------------------
-# Basic Config
-# --------------------------
-st.set_page_config(
-    page_title="Virtual Queue Management System",
-    page_icon="🎟️",
-    layout="wide"
-)
+# -------------------------
+# App Config
+# -------------------------
+st.set_page_config(page_title="Virtual Queue System", page_icon="🎟️", layout="wide")
 
-DATA_FILE = "queue_data.json"
+QUEUE_FILE = "queue_data.json"
+USER_FILE = "users.json"
 
-# --------------------------
-# Helper Functions
-# --------------------------
-def load_data():
-    if not os.path.exists(DATA_FILE):
+# -------------------------
+# Utilities
+# -------------------------
+def load_json(path):
+    if not os.path.exists(path):
         return []
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
+    return json.load(open(path, "r"))
 
-def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+def save_json(path, data):
+    json.dump(data, open(path, "w"), indent=4)
 
-def add_person(name, age, category, notes):
-    data = load_data()
-    token_no = len(data) + 1
+def register_user(email, password):
+    users = load_json(USER_FILE)
+    for u in users:
+        if u["email"] == email:
+            return False, "Email already exists!"
+    users.append({"email": email, "password": password})
+    save_json(USER_FILE, users)
+    return True, "Registration Successful!"
+
+def login_user(email, password):
+    users = load_json(USER_FILE)
+    for u in users:
+        if u["email"] == email and u["password"] == password:
+            return True
+    return False
+
+def add_person(name, age, category, notes, user):
+    data = load_json(QUEUE_FILE)
+    token = len(data) + 1
+    now = datetime.now().strftime("%I:%M:%S %p")
     entry = {
-        "token_no": token_no,
+        "token": token,
         "name": name,
         "age": age,
         "category": category,
         "notes": notes,
+        "entered_time": now,
+        "start_time": "",
+        "end_time": "",
         "status": "Waiting",
-        "timestamp": datetime.now().strftime("%H:%M:%S")
+        "user": user
     }
     data.append(entry)
-    save_data(data)
-    return token_no
+    save_json(QUEUE_FILE, data)
+    return token
 
-def get_waiting_list():
-    data = load_data()
-    return [item for item in data if item["status"] == "Waiting"]
+def update_status(token, new_status):
+    data = load_json(QUEUE_FILE)
+    for p in data:
+        if p["token"] == token:
+            if new_status == "In Progress":
+                p["start_time"] = datetime.now().strftime("%I:%M:%S %p")
+            if new_status == "Completed":
+                p["end_time"] = datetime.now().strftime("%I:%M:%S %p")
+            p["status"] = new_status
+    save_json(QUEUE_FILE, data)
 
-def update_status(token_no, new_status):
-    data = load_data()
-    for item in data:
-        if item["token_no"] == token_no:
-            item["status"] = new_status
-            break
-    save_data(data)
-
-# --------------------------
-# Dark Theme UI Styling (Fixed)
-# --------------------------
+# -------------------------
+# Dark Theme CSS
+# -------------------------
 st.markdown("""
-    <style>
-        /* Force dark background */
-        .stApp {
-            background-color: #0e1117;
-            color: #f1f1f1;
-        }
-
-        .title {
-            text-align: center;
-            font-size: 34px;
-            font-weight: 800;
-            color: #f8f9fa;
-            margin-bottom: 15px;
-        }
-
-        /* Buttons */
-        .stButton>button {
-            background-color: #1f77b4;
-            color: #ffffff;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            padding: 10px 22px;
-            transition: 0.3s;
-        }
-        .stButton>button:hover {
-            background-color: #105999;
-        }
-
-        /* Input and Text Areas */
-        .stTextInput>div>div>input, textarea, select, .stNumberInput input {
-            background-color: #262730 !important;
-            color: #f1f1f1 !important;
-            border: 1px solid #3c4048 !important;
-            border-radius: 8px;
-        }
-
-        /* Queue Cards */
-        .queue-card {
-            padding: 15px;
-            border-radius: 10px;
-            background-color: #1a1c23;
-            margin-bottom: 8px;
-            box-shadow: 0px 2px 6px rgba(255,255,255,0.05);
-            border-left: 5px solid #1f77b4;
-        }
-
-        .queue-card b { color: #ffffff; }
-        .queue-card i { color: #b5b5b5; }
-        .queue-card small { color: #999999; }
-
-        /* Sidebar */
-        section[data-testid="stSidebar"] {
-            background-color: #17191f;
-            color: #ffffff;
-        }
-    </style>
+<style>
+.stApp {background-color:#0e1117; color:#fff;}
+.title{text-align:center;font-size:32px;font-weight:800;}
+.stButton>button{background:#1f77b4;color:white;border-radius:10px;padding:8px 18px;}
+.queue-card{background:#1a1c23;padding:12px;border-left:5px solid #1f77b4;
+border-radius:8px;margin-bottom:6px;}
+input, textarea, select {background:#262730 !important; color:white !important;}
+section[data-testid="stSidebar"] {background:#17191f;}
+</style>
 """, unsafe_allow_html=True)
 
-# --------------------------
-# App Title
-# --------------------------
-st.markdown("<div class='title'>🎟️ Virtual Queue Management System</div>", unsafe_allow_html=True)
-menu = ["👤 User Registration", "🧑‍💼 Staff Console"]
-choice = st.sidebar.radio("Select Module", menu)
+# -------------------------
+# Session Init
+# -------------------------
+if "logged" not in st.session_state:
+    st.session_state.logged = False
+if "email" not in st.session_state:
+    st.session_state.email = ""
 
-# --------------------------
-# Module 1: User Registration
-# --------------------------
-if choice == "👤 User Registration":
-    st.subheader("🧾 Register to Join the Queue")
+# -------------------------
+# Login & Register Page
+# -------------------------
+if not st.session_state.logged:
+    st.markdown("<div class='title'>🔐 Login to Virtual Queue</div>", unsafe_allow_html=True)
+    choice = st.radio("Select", ["Login", "Register"])
 
-    with st.form("queue_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            name = st.text_input("Full Name")
-            age = st.number_input("Age", min_value=0, max_value=120, step=1)
-        with col2:
-            category = st.selectbox(
-                "Select Service / Category",
-                ["General Service", "Customer Support", "Billing", "Consultation", "Enquiry"]
-            )
-            notes = st.text_area("Additional Notes / Reason")
-        submitted = st.form_submit_button("Generate Token")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
 
-        if submitted:
-            if name and age > 0:
-                token_no = add_person(name, age, category, notes)
-                st.success("✅ Token Generated Successfully!")
-                st.info(f"🎫 Your Token Number: **{token_no}**")
-                st.write("Please wait for your turn. You will be called soon.")
+    if choice == "Register":
+        if st.button("Register"):
+            ok, msg = register_user(email, password)
+            st.success(msg) if ok else st.error(msg)
+
+    else:
+        if st.button("Login"):
+            if login_user(email, password):
+                st.session_state.logged = True
+                st.session_state.email = email
+                st.success("✅ Login Successful!")
+                st.rerun()
             else:
-                st.warning("⚠️ Please enter valid details before submitting.")
+                st.error("❌ Invalid Credentials")
 
-    # Add multiple members to queue
-    st.markdown("### 👨‍👩‍👧 Add Multiple Members")
-    member_count = st.number_input("How many members to add?", min_value=1, max_value=5, step=1)
-    if st.button("Add Members"):
-        for i in range(member_count):
-            st.write(f"✅ Member {i+1} can now fill the registration form above individually.")
+    st.stop()
 
-    # Display current queue
-    st.subheader("⏳ Current Waiting Queue")
-    waiting_list = get_waiting_list()
-    if waiting_list:
-        for w in waiting_list:
-            st.markdown(
-                f"""
-                <div class="queue-card">
-                <b>Token #{w['token_no']}</b> | {w['name']} ({w['age']} yrs) - {w['category']}<br>
-                <i>Notes:</i> {w['notes']}<br>
-                <small>🕒 Registered at {w['timestamp']} | Status: <b>{w['status']}</b></small>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-    else:
-        st.info("🎉 No one is waiting in the queue right now.")
+# -------------------------
+# Logged-In Application
+# -------------------------
+st.sidebar.success(f"✅ Logged in: {st.session_state.email}")
+menu = st.sidebar.radio("Menu", ["User Queue", "Staff Console", "Logout"])
 
-# --------------------------
-# Module 2: Staff Console
-# --------------------------
-elif choice == "🧑‍💼 Staff Console":
-    st.subheader("🧑‍💼 Staff / Service Provider Console")
+# Logout
+if menu == "Logout":
+    st.session_state.logged = False
+    st.session_state.email = ""
+    st.rerun()
 
-    data = load_data()
-    if not data:
-        st.info("No entries in the queue yet.")
-    else:
-        categories = ["All"] + sorted(list(set([d["category"] for d in data])))
-        selected_cat = st.selectbox("Filter by Service / Category", categories)
+st.markdown("<div class='title'>🎟️ Virtual Queue Management System</div>", unsafe_allow_html=True)
 
-        if selected_cat != "All":
-            data = [d for d in data if d["category"] == selected_cat]
+# -------------------------
+# User Queue
+# -------------------------
+if menu == "User Queue":
+    st.header("🧾 Join the Queue")
 
-        waiting = [d for d in data if d["status"] == "Waiting"]
-        active = [d for d in data if d["status"] == "In Progress"]
+    with st.form("queue"):
+        col1, col2 = st.columns(2)
+        name = col1.text_input("Full Name")
+        age = col1.number_input("Age", 1, 120)
+        category = col2.selectbox("Service Type",
+                                  ["General", "Customer Support", "Billing", "Consultation", "Enquiry"])
+        notes = col2.text_area("Notes")
 
-        # Waiting Queue
-        st.markdown("### 🕒 Waiting Queue")
-        if waiting:
-            for p in waiting:
-                col1, col2, col3 = st.columns([3, 1, 1])
-                with col1:
-                    st.write(f"**Token #{p['token_no']}** - {p['name']} ({p['age']} yrs) - {p['category']}")
-                with col2:
-                    if st.button(f"Start {p['token_no']}", key=f"start_{p['token_no']}"):
-                        update_status(p['token_no'], "In Progress")
-                        st.success(f"✅ Token #{p['token_no']} now In Progress")
-                with col3:
-                    if st.button(f"Cancel {p['token_no']}", key=f"cancel_{p['token_no']}"):
-                        update_status(p['token_no'], "Cancelled")
-                        st.warning(f"❌ Token #{p['token_no']} cancelled")
-        else:
-            st.info("No one is waiting right now.")
+        submit = st.form_submit_button("Generate Token")
 
-        # Active Queue
-        st.markdown("### ⚙️ Currently Being Served")
-        if active:
-            for p in active:
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.write(f"**Token #{p['token_no']}** - {p['name']} ({p['age']} yrs) - {p['category']}")
-                with col2:
-                    if st.button(f"Complete {p['token_no']}", key=f"done_{p['token_no']}"):
-                        update_status(p['token_no'], "Completed")
-                        st.success(f"✅ Token #{p['token_no']} marked as Completed")
-        else:
-            st.info("No one currently being served.")
+        if submit:
+            token = add_person(name, age, category, notes, st.session_state.email)
+            st.success(f"🎫 Your Token: **{token}**")
+            st.info("Please wait. Staff will call you.")
 
-        # Full Table
-        st.markdown("### 📋 Complete Queue Data")
-        st.table(data)
+    st.subheader("⏳ Current Queue")
+    queue = load_json(QUEUE_FILE)
+    for p in queue:
+        if p["status"] == "Waiting":
+            st.markdown(f"""
+            <div class='queue-card'>
+            <b>Token {p['token']}</b> | {p['name']} ({p['age']} yrs) - {p['category']}<br>
+            🕒 Entered: {p['entered_time']}<br>
+            <i>Notes:</i> {p['notes']} 
+            </div>
+            """, unsafe_allow_html=True)
+
+# -------------------------
+# Staff Console
+# -------------------------
+elif menu == "Staff Console":
+    st.header("🧑‍💼 Staff Console")
+
+    data = load_json(QUEUE_FILE)
+    waiting = [d for d in data if d["status"] == "Waiting"]
+    active = [d for d in data if d["status"] == "In Progress"]
+
+    st.subheader("🕒 Waiting")
+    for p in waiting:
+        col1, col2, col3 = st.columns([3,1,1])
+        col1.write(f"Token {p['token']} - {p['name']} ({p['age']})")
+        if col2.button("Start", key=f"start{p['token']}"):
+            update_status(p["token"], "In Progress")
+            st.rerun()
+        if col3.button("Cancel", key=f"cancel{p['token']}"):
+            update_status(p["token"], "Cancelled")
+            st.rerun()
+
+    st.subheader("⚙️ In Progress")
+    for p in active:
+        col1, col2 = st.columns([3,1])
+        col1.write(f"Token {p['token']} - {p['name']} | Start: {p['start_time']}")
+        if col2.button("Finish", key=f"finish{p['token']}"):
+            update_status(p["token"], "Completed")
+            st.rerun()
+
+    st.subheader("✅ Completed")
+    for p in data:
+        if p["status"] == "Completed":
+            st.write(f"Token {p['token']} - {p['name']} | ⏱ {p['start_time']} → {p['end_time']}")
