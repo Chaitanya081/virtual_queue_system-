@@ -2,199 +2,150 @@ import streamlit as st
 import json, os
 from datetime import datetime
 
-# -------------------------
-# App Config
-# -------------------------
+# ------------------------- CONFIG -------------------------
 st.set_page_config(page_title="Virtual Queue System", page_icon="🎟️", layout="wide")
 
-QUEUE_FILE = "queue_data.json"
 USER_FILE = "users.json"
+QUEUE_FILE = "queue_data.json"
 
-# -------------------------
-# Utilities
-# -------------------------
-def load_json(path):
-    if not os.path.exists(path):
-        return []
-    return json.load(open(path, "r"))
+# ------------------------- UTIL FUNCTIONS -------------------------
+def load(path):
+    return json.load(open(path)) if os.path.exists(path) else []
 
-def save_json(path, data):
+def save(path, data):
     json.dump(data, open(path, "w"), indent=4)
 
-def register_user(email, password):
-    users = load_json(USER_FILE)
-    for u in users:
-        if u["email"] == email:
-            return False, "Email already exists!"
-    users.append({"email": email, "password": password})
-    save_json(USER_FILE, users)
-    return True, "Registration Successful!"
+def register(email, pwd):
+    users = load(USER_FILE)
+    if any(u["email"] == email for u in users):
+        return False, "⚠ Email already exists"
+    users.append({"email": email, "password": pwd})
+    save(USER_FILE, users)
+    return True, "✅ Registration successful!"
 
-def login_user(email, password):
-    users = load_json(USER_FILE)
-    for u in users:
-        if u["email"] == email and u["password"] == password:
-            return True
-    return False
+def login(email, pwd):
+    return any(u["email"] == email and u["password"] == pwd for u in load(USER_FILE))
 
-def add_person(name, age, category, notes, user):
-    data = load_json(QUEUE_FILE)
+def add_to_queue(name, age, category, notes, email):
+    data = load(QUEUE_FILE)
     token = len(data) + 1
-    now = datetime.now().strftime("%I:%M:%S %p")
-    entry = {
-        "token": token,
-        "name": name,
-        "age": age,
-        "category": category,
-        "notes": notes,
-        "entered_time": now,
-        "start_time": "",
-        "end_time": "",
-        "status": "Waiting",
-        "user": user
+    entry={
+        "token": token, "name": name, "age": age, "category": category, "notes": notes,
+        "entered": datetime.now().strftime("%I:%M:%S %p"),
+        "start": "", "end": "", "status": "Waiting", "user": email
     }
     data.append(entry)
-    save_json(QUEUE_FILE, data)
+    save(QUEUE_FILE, data)
     return token
 
-def update_status(token, new_status):
-    data = load_json(QUEUE_FILE)
+def update_status(token, status):
+    data = load(QUEUE_FILE)
     for p in data:
         if p["token"] == token:
-            if new_status == "In Progress":
-                p["start_time"] = datetime.now().strftime("%I:%M:%S %p")
-            if new_status == "Completed":
-                p["end_time"] = datetime.now().strftime("%I:%M:%S %p")
-            p["status"] = new_status
-    save_json(QUEUE_FILE, data)
+            if status=="In Progress": p["start"]=datetime.now().strftime("%I:%M:%S %p")
+            if status=="Completed": p["end"]=datetime.now().strftime("%I:%M:%S %p")
+            p["status"]=status
+    save(QUEUE_FILE, data)
 
-# -------------------------
-# Dark Theme CSS
-# -------------------------
+# ------------------------- DARK THEME STYLE -------------------------
 st.markdown("""
 <style>
-.stApp {background-color:#0e1117; color:#fff;}
-.title{text-align:center;font-size:32px;font-weight:800;}
-.stButton>button{background:#1f77b4;color:white;border-radius:10px;padding:8px 18px;}
-.queue-card{background:#1a1c23;padding:12px;border-left:5px solid #1f77b4;
-border-radius:8px;margin-bottom:6px;}
-input, textarea, select {background:#262730 !important; color:white !important;}
+.stApp { background:#0e1117; color:white; }
 section[data-testid="stSidebar"] {background:#17191f;}
+.stButton>button {background:#1f77b4;color:white;border-radius:8px;}
+input,textarea,select {background:#262730!important;color:white!important;}
+.queue {background:#1a1c23;padding:10px;border-radius:8px;
+border-left:5px solid #1f77b4;margin-bottom:8px;}
+.title{font-size:32px;text-align:center;font-weight:800;margin-bottom:10px}
 </style>
-""", unsafe_allow_html=True)
+""",unsafe_allow_html=True)
 
-# -------------------------
-# Session Init
-# -------------------------
-if "logged" not in st.session_state:
-    st.session_state.logged = False
-if "email" not in st.session_state:
-    st.session_state.email = ""
+# ------------------------- SESSION -------------------------
+if "auth" not in st.session_state: st.session_state.auth=False
+if "user" not in st.session_state: st.session_state.user=""
 
-# -------------------------
-# Login & Register Page
-# -------------------------
-if not st.session_state.logged:
-    st.markdown("<div class='title'>🔐 Login to Virtual Queue</div>", unsafe_allow_html=True)
-    choice = st.radio("Select", ["Login", "Register"])
+# ------------------------- LOGIN / REGISTER -------------------------
+if not st.session_state.auth:
+    st.markdown("<div class='title'>🔐 Login / Register</div>",unsafe_allow_html=True)
+    mode=st.radio("Select Mode",["Login","Register"])
+    email=st.text_input("Email")
+    pwd=st.text_input("Password",type="password")
 
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-
-    if choice == "Register":
-        if st.button("Register"):
-            ok, msg = register_user(email, password)
+    if mode=="Register":
+        if st.button("Create Account"):
+            ok,msg=register(email,pwd)
             st.success(msg) if ok else st.error(msg)
-
     else:
         if st.button("Login"):
-            if login_user(email, password):
-                st.session_state.logged = True
-                st.session_state.email = email
-                st.success("✅ Login Successful!")
-                st.rerun()
-            else:
-                st.error("❌ Invalid Credentials")
-
+            if login(email,pwd):
+                st.session_state.auth=True; st.session_state.user=email; st.rerun()
+            else: st.error("❌ Wrong email or password")
     st.stop()
 
-# -------------------------
-# Logged-In Application
-# -------------------------
-st.sidebar.success(f"✅ Logged in: {st.session_state.email}")
-menu = st.sidebar.radio("Menu", ["User Queue", "Staff Console", "Logout"])
+# ------------------------- MAIN APP -------------------------
+st.sidebar.success(f"✅ Logged in: {st.session_state.user}")
 
-# Logout
-if menu == "Logout":
-    st.session_state.logged = False
-    st.session_state.email = ""
-    st.rerun()
+menu=st.sidebar.radio("Menu",["User Queue","Staff Console","Logout"])
 
-st.markdown("<div class='title'>🎟️ Virtual Queue Management System</div>", unsafe_allow_html=True)
+if menu=="Logout":
+    st.session_state.auth=False; st.rerun()
 
-# -------------------------
-# User Queue
-# -------------------------
-if menu == "User Queue":
-    st.header("🧾 Join the Queue")
+st.markdown("<div class='title'>🎟 Virtual Queue Management System</div>",unsafe_allow_html=True)
 
-    with st.form("queue"):
-        col1, col2 = st.columns(2)
-        name = col1.text_input("Full Name")
-        age = col1.number_input("Age", 1, 120)
-        category = col2.selectbox("Service Type",
-                                  ["General", "Customer Support", "Billing", "Consultation", "Enquiry"])
-        notes = col2.text_area("Notes")
+# ------------------------- USER QUEUE PAGE -------------------------
+if menu=="User Queue":
+    st.subheader("🧾 Join Queue")
 
-        submit = st.form_submit_button("Generate Token")
+    with st.form("f"):
+        c1,c2=st.columns(2)
+        name=c1.text_input("Name")
+        age=c1.number_input("Age",1,120)
+        category=c2.selectbox("Service Type",["General","Billing","Consultation","Support"])
+        notes=c2.text_area("Notes")
+        submit=st.form_submit_button("Generate Token")
 
         if submit:
-            token = add_person(name, age, category, notes, st.session_state.email)
-            st.success(f"🎫 Your Token: **{token}**")
-            st.info("Please wait. Staff will call you.")
+            if name:
+                t=add_to_queue(name,age,category,notes,st.session_state.user)
+                st.success(f"🎫 Token #{t} generated")
+            else: st.error("Enter name")
 
-    st.subheader("⏳ Current Queue")
-    queue = load_json(QUEUE_FILE)
-    for p in queue:
-        if p["status"] == "Waiting":
+    st.subheader("⏳ Waiting")
+    for p in load(QUEUE_FILE):
+        if p["status"]=="Waiting":
             st.markdown(f"""
-            <div class='queue-card'>
-            <b>Token {p['token']}</b> | {p['name']} ({p['age']} yrs) - {p['category']}<br>
-            🕒 Entered: {p['entered_time']}<br>
-            <i>Notes:</i> {p['notes']} 
+            <div class='queue'>
+            <b>Token {p['token']}</b> - {p['name']} ({p['age']})<br>
+            🕒 Entered: {p['entered']}<br>
+            <i>{p['notes']}</i>
             </div>
-            """, unsafe_allow_html=True)
+            """,unsafe_allow_html=True)
 
-# -------------------------
-# Staff Console
-# -------------------------
-elif menu == "Staff Console":
-    st.header("🧑‍💼 Staff Console")
+# ------------------------- STAFF PAGE -------------------------
+elif menu=="Staff Console":
+    st.subheader("🧑‍💼 Manage Queue")
 
-    data = load_json(QUEUE_FILE)
-    waiting = [d for d in data if d["status"] == "Waiting"]
-    active = [d for d in data if d["status"] == "In Progress"]
+    data=load(QUEUE_FILE)
+    waiting=[p for p in data if p["status"]=="Waiting"]
+    active=[p for p in data if p["status"]=="In Progress"]
 
-    st.subheader("🕒 Waiting")
+    st.write("🕒 **Waiting**")
     for p in waiting:
-        col1, col2, col3 = st.columns([3,1,1])
-        col1.write(f"Token {p['token']} - {p['name']} ({p['age']})")
-        if col2.button("Start", key=f"start{p['token']}"):
-            update_status(p["token"], "In Progress")
-            st.rerun()
-        if col3.button("Cancel", key=f"cancel{p['token']}"):
-            update_status(p["token"], "Cancelled")
-            st.rerun()
+        c1,c2,c3=st.columns([3,1,1])
+        c1.write(f"Token {p['token']} - {p['name']}")
+        if c2.button("Start",key=f"s{p['token']}"):
+            update_status(p["token"],"In Progress"); st.rerun()
+        if c3.button("Cancel",key=f"c{p['token']}"):
+            update_status(p["token"],"Cancelled"); st.rerun()
 
-    st.subheader("⚙️ In Progress")
+    st.write("⚙ **In Progress**")
     for p in active:
-        col1, col2 = st.columns([3,1])
-        col1.write(f"Token {p['token']} - {p['name']} | Start: {p['start_time']}")
-        if col2.button("Finish", key=f"finish{p['token']}"):
-            update_status(p["token"], "Completed")
-            st.rerun()
+        c1,c2=st.columns([3,1])
+        c1.write(f"Token {p['token']} - {p['name']} | Start: {p['start']}")
+        if c2.button("Finish",key=f"f{p['token']}"):
+            update_status(p["token"],"Completed"); st.rerun()
 
-    st.subheader("✅ Completed")
+    st.write("✅ **Completed**")
     for p in data:
-        if p["status"] == "Completed":
-            st.write(f"Token {p['token']} - {p['name']} | ⏱ {p['start_time']} → {p['end_time']}")
+        if p["status"]=="Completed":
+            st.write(f"Token {p['token']} - {p['name']} | {p['start']} ➝ {p['end']}")
