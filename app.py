@@ -8,7 +8,7 @@ st.set_page_config(page_title="Virtual Queue System", page_icon="🎟️", layou
 USER_FILE  = "users.json"
 QUEUE_FILE = "queue_data.json"
 
-# -------------------- FILE HELPERS --------------------
+# -------------------- FILE FUNCTIONS --------------------
 def ensure_file(path, default):
     if not os.path.exists(path):
         with open(path, "w") as f: json.dump(default, f)
@@ -45,17 +45,17 @@ def update_status(token, status):
             break
     save_json(QUEUE_FILE, data)
 
-# -------------------- UI STYLE --------------------
+# -------------------- DARK THEME STYLE --------------------
 st.markdown("""
 <style>
-.stApp{background:#0e1117;color:#fff;}
-section[data-testid="stSidebar"]{background:#17191f;}
-.metric{padding:12px;background:#151821;border:1px solid #222532;border-radius:12px;text-align:center;}
-.queue{background:#1a1c23;padding:12px;border-left:5px solid #1f77b4;border-radius:10px;margin-bottom:8px;}
-.stButton>button{background:#1f77b4;color:white;border-radius:10px;padding:8px 16px;}
-.stButton>button:hover{background:#125f93;}
-input,textarea,select{background:#262730!important;color:white!important;}
-.title{text-align:center;font-size:30px;font-weight:800;margin-top:5px;}
+.stApp {background:#0e1117;color:#fff;}
+section[data-testid="stSidebar"] {background:#17191f;}
+.metric {padding:12px;background:#151821;border:1px solid #222532;border-radius:12px;text-align:center;}
+.queue {background:#1a1c23;padding:12px;border-left:5px solid #1f77b4;border-radius:10px;margin-bottom:8px;}
+.stButton>button {background:#1f77b4;color:white;border-radius:10px;padding:8px 16px;}
+.stButton>button:hover {background:#125f93;}
+input,textarea,select {background:#262730!important;color:white!important;}
+.title {text-align:center;font-size:30px;font-weight:800;margin-top:5px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -63,7 +63,7 @@ input,textarea,select{background:#262730!important;color:white!important;}
 if "auth" not in st.session_state: st.session_state.auth = False
 if "user" not in st.session_state: st.session_state.user = ""
 
-# -------------------- LOGIN / AUTO REGISTER --------------------
+# -------------------- SMART LOGIN --------------------
 def smart_login(email, pwd):
     users = load_json(USER_FILE)
     for u in users:
@@ -74,21 +74,25 @@ def smart_login(email, pwd):
     users.append({"email": email, "password": pwd}); save_json(USER_FILE, users)
     return "registered"
 
+# -------------------- LOGIN PAGE --------------------
 if not st.session_state.auth:
 
     st.markdown(f"""
     <style>
     .login-container{{display:flex;height:100vh;width:100%;}}
-    .left-side{{
+    .left-side {{
         flex:1;
-        background-image:url("assets1/login_bg.jpg");
-        background-size:cover;background-position:center;
+        background-image:url("https://raw.githubusercontent.com/Chaitanya081/virtual_queue_system-/main/assets1/login_bg.jpg");
+        background-size:cover;
+        background-position:center;
     }}
-    .right-side{{
+    .right-side {{
         flex:1;background:#0e1117;padding:70px;
         display:flex;flex-direction:column;justify-content:center;
     }}
-    .login-title{{font-size:32px;font-weight:800;color:white;margin-bottom:20px;}}
+    .login-title {{
+        font-size:32px;font-weight:800;color:white;margin-bottom:20px;
+    }}
     </style>
 
     <div class="login-container">
@@ -102,18 +106,18 @@ if not st.session_state.auth:
 
     if st.button("Continue ➜"):
         if not email or not pwd:
-            st.warning("Enter email & password")
+            st.warning("⚠ Enter email & password")
         else:
             result = smart_login(email, pwd)
             if result in ("login", "registered"):
                 st.session_state.auth = True; st.session_state.user = email; st.rerun()
             else:
-                st.error("Wrong password")
+                st.error("❌ Wrong password")
 
     st.markdown("</div></div>", unsafe_allow_html=True)
     st.stop()
 
-# -------------------- MAIN UI --------------------
+# -------------------- SIDEBAR --------------------
 st.sidebar.success(f"Logged in: {st.session_state.user}")
 menu = st.sidebar.radio("Menu", ["Dashboard","User Queue","Staff Console","Logout"])
 
@@ -158,7 +162,7 @@ elif menu=="User Queue":
 
     if go:
         if not name:
-            st.error("Name required")
+            st.error("⚠ Name required")
         else:
             token = add_to_queue(name,age,category,notes,st.session_state.user)
             st.success(f"✅ Token #{token} created")
@@ -166,15 +170,16 @@ elif menu=="User Queue":
     st.markdown("### ⏳ Waiting Queue")
     for p in load_json(QUEUE_FILE):
         if p["status"]=="Waiting":
-            st.markdown(f"<div class='queue'><b>{p['token']}</b> {p['name']} ({p['age']})<br>⏱ {p['entered']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='queue'><b>{p['token']}</b> {p['name']} ({p['age']})<br>⏱ {p['entered']}</div>",
+                        unsafe_allow_html=True)
 
 # -------------------- STAFF CONSOLE --------------------
 elif menu=="Staff Console":
-    st.subheader("🧑‍💼 Staff Panel")
+    st.subheader("🧑‍⚕️ Staff Panel")
     data = load_json(QUEUE_FILE)
     
     wait = [p for p in data if p["status"]=="Waiting"]
-    act  = [p for p in data if p["status"]=="In Progress"]
+    progress  = [p for p in data if p["status"]=="In Progress"]
 
     st.write("### Waiting")
     for p in wait:
@@ -186,7 +191,7 @@ elif menu=="Staff Console":
             update_status(p["token"],"Cancelled"); st.rerun()
 
     st.write("### In Progress")
-    for p in act:
+    for p in progress:
         c1,c2 = st.columns([3,1])
         c1.write(f"#{p['token']} {p['name']} | Start: {p['start']}")
         if c2.button("Finish", key="finish_"+str(p["token"])):
