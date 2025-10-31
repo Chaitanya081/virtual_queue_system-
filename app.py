@@ -101,23 +101,17 @@ if not st.session_state.auth:
         margin-bottom:20px;
     }
 
+    /* ✅ Visible black text in input box */
+    input {
+        color: black !important;
+        font-weight: 600 !important;
+    }
+
     .stTextInput>div>div>input {
         background:white !important;
-        height:45px; border-radius:6px; font-size:15px;
-    }
-
-    .stButton>button {
-        width:100%; background:#0e8e6c;
-        color:white; padding:12px; border-radius:6px;
-        font-weight:600; border:none;
-    }
-
-    .stButton>button:hover { background:#0b775a; }
-
-    .footer {
-        position:fixed; bottom:10px; width:100%;
-        text-align:center; color:white; font-size:13px;
-        text-shadow:1px 1px 2px black;
+        height:45px; border-radius:6px;
+        font-size:15px;
+        color:black !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -125,8 +119,8 @@ if not st.session_state.auth:
     st.markdown('<div class="login-wrapper"><div class="login-card">', unsafe_allow_html=True)
     st.markdown('<div class="login-title">Queue Management System</div>', unsafe_allow_html=True)
 
-    email = st.text_input("Email")
-    pwd = st.text_input("Password", type="password")
+    email = st.text_input("Email", placeholder="Enter Email")
+    pwd = st.text_input("Password", placeholder="Enter Password", type="password")
 
     if st.button("Login"):
         if not email or not pwd:
@@ -141,7 +135,6 @@ if not st.session_state.auth:
                 st.error("❌ Wrong password")
 
     st.markdown("</div></div>", unsafe_allow_html=True)
-    st.markdown('<div class="footer">© 2024 Queue Management System</div>', unsafe_allow_html=True)
     st.stop()
 
 # -------------------- SIDEBAR --------------------
@@ -149,8 +142,7 @@ st.sidebar.success(f"Logged in as: {st.session_state.user}")
 menu = st.sidebar.radio("Menu", ["Dashboard","User Queue","Staff Console","Logout"])
 
 if menu == "Logout":
-    st.session_state.clear()
-    st.rerun()
+    st.session_state.clear(); st.rerun()
 
 st.markdown("<h2 style='text-align:center;'>🎟 Virtual Queue Management System</h2>", unsafe_allow_html=True)
 
